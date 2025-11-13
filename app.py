@@ -25,6 +25,8 @@ except Exception:
     IntervalTrigger = None
     scheduler = None
 import asyncio
+import logging
+import sys
 from crawler import run_crawler
 
 app = FastAPI()
@@ -52,9 +54,18 @@ app.add_middleware(
 CONFIG = load_config('config.yaml')
 try:
     DB_CONFIG = get_database_config()
-    print(f"使用配置文件中的数据库配置: {DB_CONFIG['host']}:{DB_CONFIG['port']}")
+    
+    LOG_LEVEL = str(CONFIG.get('log_level', 'INFO')).upper()
+    logging.basicConfig(
+        level=getattr(logging, LOG_LEVEL, logging.INFO),
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        handlers=[logging.StreamHandler(sys.stdout)],
+    )
+    logger = logging.getLogger("pt-crawler")
+    logger.info(f"使用配置文件中的数据库配置: {DB_CONFIG['host']}:{DB_CONFIG['port']}")
 except Exception as e:
-    print(f"加载数据库配置失败: {e}")
+    logger = logging.getLogger("pt-crawler")
+    logger.error(f"加载数据库配置失败: {e}")
     # 使用默认配置
     DB_CONFIG = {
         'host': 'localhost',
@@ -160,9 +171,11 @@ async def add_task_endpoint(task: Task):
                         base[k] = site_row[k]
             scheduler.add_job(lambda: asyncio.run(run_crawler(base)), trigger, id=str(task_id))
         except Exception as e:
-            print(f"警告: 添加任务到调度器失败: {e}")
+            logger = logging.getLogger("pt-crawler")
+            logger.warning(f"添加任务到调度器失败: {e}")
     else:
-        print("提示: 手动任务或调度器未初始化，任务将不会自动执行")
+        logger = logging.getLogger("pt-crawler")
+        logger.info("手动任务或调度器未初始化，任务将不会自动执行")
     
     return {"id": task_id}
 
@@ -330,7 +343,8 @@ async def execute_task_endpoint(task_id: int):
 async def run_single_task(task_id: int, task: dict, site: dict):
     """运行单个任务"""
     try:
-        print(f"开始执行任务 {task_id}: {task['name']} - 站点: {site['name']}")
+        logger = logging.getLogger("pt-crawler")
+        logger.info(f"开始执行任务 {task_id}: {task['name']} - 站点: {site['name']}")
         
         # 这里调用实际的爬虫逻辑
         # 可以复用现有的爬虫代码
@@ -339,11 +353,12 @@ async def run_single_task(task_id: int, task: dict, site: dict):
         # 执行爬虫（这里简化处理，实际应该调用完整的爬虫逻辑）
         result = await run_crawler_for_site(site, task)
         
-        print(f"任务 {task_id} 执行完成")
+        logger.info(f"任务 {task_id} 执行完成")
         return result
         
     except Exception as e:
-        print(f"任务 {task_id} 执行失败: {str(e)}")
+        logger = logging.getLogger("pt-crawler")
+        logger.error(f"任务 {task_id} 执行失败: {str(e)}")
         raise e
 
 # 新增：站点操作API
