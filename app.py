@@ -53,9 +53,7 @@ app.add_middleware(
 )
 
 # 获取数据库配置 - 只从config.yaml读取
-if not os.path.exists('config.yaml'):
-    raise FileNotFoundError('config.yaml not found in working directory')
-CONFIG = load_config('config.yaml')
+CONFIG = load_config('config.yaml') if os.path.exists('config.yaml') else {}
 try:
     DB_CONFIG = get_database_config()
     
@@ -500,8 +498,7 @@ async def get_system_settings_by_category(category: str):
     """按分类获取系统设置"""
     try:
         if category == "database":
-            # 数据库配置只从config.yaml读取，不通过API暴露
-            config = load_config('/config/config.yaml')
+            config = load_config('/config/config.yaml') if os.path.exists('/config/config.yaml') else (load_config('config.yaml') if os.path.exists('config.yaml') else {})
             settings = {
                 'db_host': config.get('db_host', 'localhost'),
                 'db_port': config.get('db_port', 3306),
