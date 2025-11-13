@@ -53,19 +53,9 @@ app.add_middleware(
 )
 
 # 获取数据库配置 - 只从config.yaml读取
-config_dir = os.path.join('config')
-config_file = os.path.join('config', 'config.yaml')
-if not os.path.exists(config_file):
-    os.makedirs(config_dir, exist_ok=True)
-    copied = False
-    for src in ['/app/config.yaml', 'config.yaml']:
-        if os.path.exists(src):
-            shutil.copy(src, config_file)
-            copied = True
-            break
-    if not copied:
-        raise FileNotFoundError(f'{config_file} not found and no default config available')
-CONFIG = load_config(config_file)
+if not os.path.exists('config.yaml'):
+    raise FileNotFoundError('config.yaml not found in working directory')
+CONFIG = load_config('config.yaml')
 try:
     DB_CONFIG = get_database_config()
     
