@@ -31,7 +31,7 @@ from crawler import run_crawler
 
 app = FastAPI()
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory="static", check_dir=False), name="static")
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
@@ -63,6 +63,7 @@ try:
     )
     logger = logging.getLogger("pt-crawler")
     logger.info(f"使用配置文件中的数据库配置: {DB_CONFIG['host']}:{DB_CONFIG['port']}")
+    DB_CONFIG['ssl_disabled'] = False
 except Exception as e:
     logger = logging.getLogger("pt-crawler")
     logger.error(f"加载数据库配置失败: {e}")
@@ -73,13 +74,11 @@ except Exception as e:
         'user': 'root',
         'password': '',
         'database': 'pt_crawler',
+        'ssl_disabled': False,
     }
 
-engine = sa.create_engine(f"mysql+pymysql://{DB_CONFIG['user']}:{DB_CONFIG['password']}@{DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['database']}")
-Session = sessionmaker(bind=engine)
-init_site_task_tables(DB_CONFIG)
-ensure_torrents_crawled_at(DB_CONFIG)
-ensure_torrents_is_upload(DB_CONFIG)
+engine = None
+Session = None
 
 # 服务启动后自动恢复定时任务（只注册非手动任务）
 def _register_existing_scheduled_tasks():
@@ -124,7 +123,23 @@ def _register_existing_scheduled_tasks():
     except Exception:
         pass
 
-_register_existing_scheduled_tasks()
+@app.on_event("startup")
+async def _on_startup():
+    global engine, Session
+    try:
+        engine = sa.create_engine(
+            f"mysql+pymysql://{DB_CONFIG['user']}:{DB_CONFIG['password']}@{DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['database']}"
+        )
+        Session = sessionmaker(bind=engine)
+        init_site_task_tables(DB_CONFIG)
+        ensure_torrents_crawled_at(DB_CONFIG)
+        ensure_torrents_is_upload(DB_CONFIG)
+    except Exception:
+        pass
+    try:
+        _register_existing_scheduled_tasks()
+    except Exception:
+        pass
 
 # 调度器
 
