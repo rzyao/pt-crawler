@@ -11,7 +11,7 @@ from pydantic import BaseModel
 import pymysql
 import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker
-from config_manager import load_config, get_system_settings_by_prefix, get_db_connection, get_database_config, get_all_system_settings, get_system_setting, set_system_setting, save_config
+from config_manager import load_config, get_system_settings_by_prefix, get_db_connection, get_database_config, get_all_system_settings, get_system_setting, set_system_setting
 from db_manager import init_site_task_tables, add_site, add_task, list_sites, list_tasks, get_site, ensure_torrents_crawled_at, ensure_torrents_is_upload, get_setting, set_setting, update_task, delete_task, update_site, delete_site, update_torrent, delete_torrent
 try:
     from apscheduler.schedulers.background import BackgroundScheduler
@@ -53,20 +53,17 @@ app.add_middleware(
 )
 
 # 获取数据库配置 - 只从config.yaml读取
-try:
-    if not os.path.exists('/config/config.yaml'):
-        try:
-            os.makedirs('/config', exist_ok=True)
-            if os.path.exists('/app/config.yaml'):
-                shutil.copy('/app/config.yaml', '/config/config.yaml')
-        except Exception:
-            pass
-    CONFIG = load_config('/config/config.yaml')
-except Exception:
-    try:
-        CONFIG = load_config('/app/config.yaml')
-    except Exception:
-        CONFIG = {}
+if not os.path.exists('/config/config.yaml'):
+    os.makedirs('/config', exist_ok=True)
+    copied = False
+    for src in ['/app/config.yaml', 'config.yaml']:
+        if os.path.exists(src):
+            shutil.copy(src, '/config/config.yaml')
+            copied = True
+            break
+    if not copied:
+        raise FileNotFoundError('/config/config.yaml not found and no default config available')
+CONFIG = load_config('/config/config.yaml')
 try:
     DB_CONFIG = get_database_config()
     

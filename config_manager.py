@@ -30,20 +30,16 @@ def get_db_connection():
     """
     获取数据库连接，只使用配置文件中的数据库配置
     """
-    try:
-        config = load_config('/config/config.yaml')
-        return pymysql.connect(
-            host=config.get('db_host', 'localhost'),
-            port=config.get('db_port', 3306),
-            user=config.get('db_user', 'root'),
-            password=config.get('db_password', ''),
-            database=config.get('db_name', 'pt_crawler'),
-            charset='utf8mb4',
-            cursorclass=pymysql.cursors.DictCursor
-        )
-    except Exception as e:
-        print(f"从配置文件获取数据库配置失败: {e}")
-        raise
+    cfg = load_config('/config/config.yaml')
+    return pymysql.connect(
+        host=cfg.get('db_host', 'localhost'),
+        port=cfg.get('db_port', 3306),
+        user=cfg.get('db_user', 'root'),
+        password=cfg.get('db_password', ''),
+        database=cfg.get('db_name', 'pt_crawler'),
+        charset='utf8mb4',
+        cursorclass=pymysql.cursors.DictCursor
+    )
 
 def get_system_setting(key: str, default: Any = None) -> Any:
     """
@@ -169,13 +165,13 @@ def get_database_config() -> Dict[str, Any]:
     """
     从配置文件获取数据库配置
     """
-    config = load_config('/config/config.yaml')
+    cfg = load_config('/config/config.yaml')
     return {
-        'host': config.get('db_host', 'localhost'),
-        'port': config.get('db_port', 3306),
-        'user': config.get('db_user', 'root'),
-        'password': config.get('db_password', ''),
-        'database': config.get('db_name', 'pt_crawler'),
+        'host': cfg.get('db_host', 'localhost'),
+        'port': cfg.get('db_port', 3306),
+        'user': cfg.get('db_user', 'root'),
+        'password': cfg.get('db_password', ''),
+        'database': cfg.get('db_name', 'pt_crawler'),
     }
 
 def parse_setting_value(value: str, setting_type: str) -> Any:
