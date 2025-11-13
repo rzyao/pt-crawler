@@ -303,7 +303,7 @@ async def run_crawler(site_config: dict):
 
 def main():
     parser = argparse.ArgumentParser(description='PT-Crawler for NexusPHP based sites.')
-    parser.add_argument('--conf', type=str, default='/config/config.yaml', help='Path to the configuration file.')
+    parser.add_argument('--conf', type=str, default='config/config.yaml', help='Path to the configuration file.')
     opts = parser.parse_args()
 
     config = load_config(opts.conf)

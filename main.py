@@ -22,7 +22,7 @@ def main(argv=None) -> int:
 
     config_path_to_load = args.config
     if not config_path_to_load:
-        default_config_path = '/config/config.yaml'
+        default_config_path = os.path.join('config', 'config.yaml')
         if os.path.exists(default_config_path):
             config_path_to_load = default_config_path
             print(f"[config] 未指定配置文件，自动加载默认配置文件: {os.path.abspath(config_path_to_load)}")
