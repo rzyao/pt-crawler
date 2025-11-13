@@ -5,7 +5,8 @@ COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel \
     && pip install --no-cache-dir -r /app/requirements.txt
 COPY . /app
-RUN mkdir -p /config && cp /app/config.yaml /config/config.yaml || true
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh && mkdir -p /config && cp /app/config.yaml /config/config.yaml || true
 ENV PYTHONUNBUFFERED=1
 EXPOSE 8000
-CMD ["python", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--log-level", "info"]
+CMD ["sh", "/app/docker-entrypoint.sh"]
