@@ -18,6 +18,7 @@ def load_config(path: Optional[str]) -> dict:
         obj = yaml.safe_load(f)
         return obj or {}
 
+
 def save_config(path: str, config: dict):
     """
     保存配置到 YAML 文件。
@@ -30,7 +31,7 @@ def get_db_connection():
     获取数据库连接，只使用配置文件中的数据库配置
     """
     try:
-        config = load_config('config.yaml')
+        config = load_config('/config/config.yaml')
         return pymysql.connect(
             host=config.get('db_host', 'localhost'),
             port=config.get('db_port', 3306),
@@ -50,7 +51,7 @@ def get_system_setting(key: str, default: Any = None) -> Any:
     """
     # 排除数据库配置，这些只从config.yaml读取
     if key.startswith('db_'):
-        config = load_config('config.yaml')
+        config = load_config('/config/config.yaml')
         return config.get(key, default)
     
     try:
@@ -168,7 +169,7 @@ def get_database_config() -> Dict[str, Any]:
     """
     从配置文件获取数据库配置
     """
-    config = load_config('config.yaml')
+    config = load_config('/config/config.yaml')
     return {
         'host': config.get('db_host', 'localhost'),
         'port': config.get('db_port', 3306),

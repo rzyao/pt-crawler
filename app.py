@@ -11,7 +11,7 @@ from pydantic import BaseModel
 import pymysql
 import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker
-from config_manager import load_config, get_system_settings_by_prefix, get_db_connection, get_database_config, get_all_system_settings, get_system_setting, set_system_setting
+from config_manager import load_config, get_system_settings_by_prefix, get_db_connection, get_database_config, get_all_system_settings, get_system_setting, set_system_setting, save_config
 from db_manager import init_site_task_tables, add_site, add_task, list_sites, list_tasks, get_site, ensure_torrents_crawled_at, ensure_torrents_is_upload, get_setting, set_setting, update_task, delete_task, update_site, delete_site, update_torrent, delete_torrent
 try:
     from apscheduler.schedulers.background import BackgroundScheduler
@@ -25,6 +25,8 @@ except Exception:
     IntervalTrigger = None
     scheduler = None
 import asyncio
+import os
+import shutil
 import logging
 import sys
 from crawler import run_crawler
@@ -51,7 +53,20 @@ app.add_middleware(
 )
 
 # 获取数据库配置 - 只从config.yaml读取
-CONFIG = load_config('config.yaml')
+try:
+    if not os.path.exists('/config/config.yaml'):
+        try:
+            os.makedirs('/config', exist_ok=True)
+            if os.path.exists('/app/config.yaml'):
+                shutil.copy('/app/config.yaml', '/config/config.yaml')
+        except Exception:
+            pass
+    CONFIG = load_config('/config/config.yaml')
+except Exception:
+    try:
+        CONFIG = load_config('/app/config.yaml')
+    except Exception:
+        CONFIG = {}
 try:
     DB_CONFIG = get_database_config()
     
@@ -63,7 +78,6 @@ try:
     )
     logger = logging.getLogger("pt-crawler")
     logger.info(f"使用配置文件中的数据库配置: {DB_CONFIG['host']}:{DB_CONFIG['port']}")
-    DB_CONFIG['ssl_disabled'] = False
 except Exception as e:
     logger = logging.getLogger("pt-crawler")
     logger.error(f"加载数据库配置失败: {e}")
@@ -74,7 +88,6 @@ except Exception as e:
         'user': 'root',
         'password': '',
         'database': 'pt_crawler',
-        'ssl_disabled': False,
     }
 
 engine = None
@@ -499,7 +512,7 @@ async def get_system_settings_by_category(category: str):
     try:
         if category == "database":
             # 数据库配置只从config.yaml读取，不通过API暴露
-            config = load_config('config.yaml')
+            config = load_config('/config/config.yaml')
             settings = {
                 'db_host': config.get('db_host', 'localhost'),
                 'db_port': config.get('db_port', 3306),
