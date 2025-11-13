@@ -1,0 +1,756 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>任务面板</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://unpkg.com/antd@5/dist/reset.css">
+  <link rel="stylesheet" href="https://unpkg.com/antd@5/dist/antd.min.css">
+  <link rel="stylesheet" href="/static/main.css">
+</head>
+
+<body>
+  <div id="root"></div>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/dayjs@1/dayjs.min.js"></script>
+  <script src="https://unpkg.com/dayjs@1/plugin/customParseFormat.js"></script>
+  <script src="https://unpkg.com/dayjs@1/plugin/advancedFormat.js"></script>
+  <script src="https://unpkg.com/dayjs@1/plugin/weekday.js"></script>
+  <script src="https://unpkg.com/dayjs@1/plugin/weekOfYear.js"></script>
+  <script src="https://unpkg.com/dayjs@1/plugin/isLeapYear.js"></script>
+  <script src="https://unpkg.com/dayjs@1/plugin/localeData.js"></script>
+  <script>if (window.dayjs) { dayjs.extend(window.dayjs_plugin_customParseFormat); dayjs.extend(window.dayjs_plugin_advancedFormat); dayjs.extend(window.dayjs_plugin_weekday); dayjs.extend(window.dayjs_plugin_weekOfYear); dayjs.extend(window.dayjs_plugin_isLeapYear); dayjs.extend(window.dayjs_plugin_localeData); }</script>
+  <script src="https://unpkg.com/antd@5/dist/antd.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script>if (!window.React || !window.ReactDOM || !window.antd) { document.body.innerHTML = '依赖加载失败，请检查网络/CDN' }</script>
+  <script type="text/babel" data-presets="env,react">
+    const { useState, useEffect } = React
+    const { Layout, Menu, Form, Input, Select, Button, Table, message, Modal, Switch, InputNumber, Divider, Row, Col } = antd
+    const { Header, Sider, Content, Footer } = Layout
+    async function fetchJSON(u) { const r = await fetch(u); return r.json() }
+    async function postJSON(u, o) {
+      console.log('postJSON请求:', u, '数据:', JSON.stringify(o, null, 2));
+      const r = await fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(o) });
+      console.log('postJSON响应状态:', r.status);
+      if (!r.ok) {
+        const errorText = await r.text();
+        console.error('postJSON错误响应:', errorText);
+        throw new Error(`HTTP ${r.status}: ${errorText}`);
+      }
+      return r.json();
+    }
+    function SitesPage() {
+      const [rows, setRows] = useState([])
+      const [loading, setLoading] = useState(false)
+      const [modalOpen, setModalOpen] = useState(false)
+      const [form] = Form.useForm()
+      const [editingSite, setEditingSite] = useState(null)
+
+      async function load() { setLoading(true); const data = await fetchJSON('/sites'); setRows(data || []); setLoading(false) }
+
+      async function onFinish(v) {
+        try {
+          console.log('表单提交数据:', JSON.stringify(v, null, 2));
+
+          // 客户端数据验证
+          if (!v || typeof v !== 'object') {
+            message.error('表单数据无效');
+            return;
+          }
+
+          // 检查必填字段
+          if (!v.name || !v.name.trim()) {
+            message.error('站点名称不能为空');
+            return;
+          }
+
+          if (!v.base_url || !v.base_url.trim()) {
+            message.error('站点地址不能为空');
+            return;
+          }
+
+          // 清理数据，移除空字符串
+          const cleanData = {
+            name: v.name.trim(),
+            base_url: v.base_url.trim(),
+            list_path: v.list_path ? v.list_path.trim() : '',
+            cookie: v.cookie ? v.cookie.trim() : ''
+          };
+
+          console.log('清理后的数据:', JSON.stringify(cleanData, null, 2));
+
+          if (editingSite) {
+            // 编辑模式
+            console.log('编辑模式 - 发送到:', '/sites/' + editingSite.id);
+            const res = await postJSON('/sites/' + editingSite.id, cleanData);
+            message.success('站点更新成功: ' + JSON.stringify(res));
+          } else {
+            // 添加模式
+            console.log('添加模式 - 发送到:', '/sites/');
+            const res = await postJSON('/sites/', cleanData);
+            message.success('站点创建成功: ' + JSON.stringify(res));
+          }
+          setModalOpen(false);
+          form.resetFields();
+          setEditingSite(null);
+          load();
+        } catch (error) {
+          console.error('提交失败:', error);
+          message.error('操作失败: ' + error.message);
+        }
+      }
+
+      function handleEditSite(site) {
+        setEditingSite(site);
+        form.setFieldsValue(site);
+        setModalOpen(true);
+      }
+
+      async function handleDeleteSite(siteId) {
+        if (window.confirm('确定要删除这个站点吗？')) {
+          try {
+            const res = await postJSON('/sites/' + siteId + '/delete', {});
+            message.success('站点删除成功');
+            load();
+          } catch (error) {
+            message.error('站点删除失败: ' + error.message);
+          }
+        }
+      }
+
+      useEffect(() => { load() }, [])
+      const cols = [
+        { title: '编号', dataIndex: 'id', key: 'id' },
+        { title: '名称', dataIndex: 'name', key: 'name' },
+        { title: '站点地址', dataIndex: 'base_url', key: 'base_url' },
+        { title: '列表路径', dataIndex: 'list_path', key: 'list_path' },
+        {
+          title: '操作',
+          key: 'action',
+          render: (_, record) => (
+            <span>
+              <Button type="link" size="small" onClick={() => handleEditSite(record)}>编辑</Button>
+              <Button type="link" size="small" danger onClick={() => handleDeleteSite(record.id)}>删除</Button>
+            </span>
+          )
+        }
+      ]
+      return (
+        <div>
+          <div style={{ marginBottom: 16 }}>
+            <Button type="primary" onClick={() => setModalOpen(true)}>添加站点</Button>
+          </div>
+          <Modal title={editingSite ? "编辑站点" : "添加站点"} open={modalOpen} onCancel={() => { setModalOpen(false); setEditingSite(null); form.resetFields(); }} footer={null}>
+            <Form
+              form={form}
+              layout="vertical"
+              onFinish={onFinish}
+              onValuesChange={(changedValues, allValues) => {
+                console.log('表单值变化:', JSON.stringify(changedValues, null, 2));
+                console.log('所有表单值:', JSON.stringify(allValues, null, 2));
+              }}
+            >
+              <Form.Item
+                name="name"
+                label="站点名称"
+                rules={[{
+                  required: true,
+                  message: '请输入站点名称'
+                }]}
+              >
+                <Input placeholder="请输入站点名称" />
+              </Form.Item>
+              <Form.Item
+                name="base_url"
+                label="站点地址"
+                rules={[{
+                  required: true,
+                  message: '请输入站点地址'
+                }]}
+              >
+                <Input placeholder="请输入站点地址，如：https://example.com" />
+              </Form.Item>
+              <Form.Item name="list_path" label="列表路径">
+                <Input placeholder="请输入列表路径，如：/torrents.php" />
+              </Form.Item>
+              <Form.Item name="cookie" label="Cookie">
+                <Input placeholder="请输入Cookie（可选）" />
+              </Form.Item>
+              <Form.Item>
+                <Button type="primary" htmlType="submit">保存</Button>
+                <Button style={{ marginLeft: 8 }} onClick={() => setModalOpen(false)}>取消</Button>
+              </Form.Item>
+            </Form>
+          </Modal>
+          <Table
+            rowKey="id"
+            loading={loading}
+            dataSource={rows}
+            columns={cols}
+            pagination={{
+              total: rows.length,
+              showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
+              showSizeChanger: true,
+              pageSizeOptions: ['10', '20', '50', '100'],
+              defaultPageSize: 20,
+              position: ['bottomCenter']
+            }}
+          />
+        </div>
+      )
+    }
+    function TasksPage() {
+      const [rows, setRows] = useState([])
+      const [loading, setLoading] = useState(false)
+      const [modalOpen, setModalOpen] = useState(false)
+      const [sites, setSites] = useState([])
+      const [form] = Form.useForm()
+      const [editingTask, setEditingTask] = useState(null)
+
+      async function load() {
+        setLoading(true);
+        const data = await fetchJSON('/tasks');
+        setRows(data || []);
+        const sitesData = await fetchJSON('/sites');
+        setSites(sitesData || []);
+        setLoading(false)
+      }
+
+      async function onFinish(v) {
+        try {
+          console.log('任务表单提交数据:', JSON.stringify(v, null, 2));
+
+          // 客户端数据验证
+          if (!v || typeof v !== 'object') {
+            message.error('表单数据无效');
+            return;
+          }
+
+          // 检查必填字段
+          if (!v.name || !v.name.trim()) {
+            message.error('任务名称不能为空');
+            return;
+          }
+
+          if (!v.site_id) {
+            message.error('请选择站点');
+            return;
+          }
+
+          if (!v.schedule_type) {
+            message.error('请选择调度类型');
+            return;
+          }
+
+          if (v.schedule_type !== 'manual') {
+            if (!v.schedule_value || !v.schedule_value.trim()) {
+              message.error('调度值不能为空');
+              return;
+            }
+          }
+
+          // 清理数据，移除空字符串
+          const cleanData = {
+            name: v.name.trim(),
+            site_id: v.site_id,
+            schedule_type: v.schedule_type,
+            schedule_value: v.schedule_type === 'manual' ? '' : v.schedule_value.trim()
+          };
+
+          console.log('清理后的任务数据:', JSON.stringify(cleanData, null, 2));
+
+          if (editingTask) {
+            // 编辑模式
+            console.log('编辑模式 - 发送到:', '/tasks/' + editingTask.id);
+            const res = await postJSON('/tasks/' + editingTask.id, cleanData);
+            message.success('任务更新成功: ' + JSON.stringify(res));
+          } else {
+            // 添加模式
+            console.log('添加模式 - 发送到:', '/tasks/');
+            const res = await postJSON('/tasks/', cleanData);
+            message.success('任务创建成功: ' + JSON.stringify(res));
+          }
+          setModalOpen(false);
+          form.resetFields();
+          setEditingTask(null);
+          load();
+        } catch (error) {
+          console.error('任务提交失败:', error);
+          message.error('操作失败: ' + error.message);
+        }
+      }
+
+      async function handleExecuteTask(taskId) {
+        try {
+          message.info('正在执行任务，请稍候...');
+          const res = await postJSON('/tasks/' + taskId + '/execute', {});
+
+          if (res.success !== false) {
+            message.success('任务已开始执行: ' + res.message);
+            // 可以添加一个定时器来检查任务状态
+            setTimeout(() => {
+              message.info('任务执行中，结果将在后台完成');
+              load(); // 刷新列表
+            }, 2000);
+          } else {
+            message.error('任务执行失败: ' + res.message);
+          }
+        } catch (error) {
+          message.error('任务执行失败: ' + error.message);
+        }
+      }
+
+      function handleEditTask(task) {
+        setEditingTask(task);
+        form.setFieldsValue(task);
+        setModalOpen(true);
+      }
+
+      async function handleDeleteTask(taskId) {
+        if (window.confirm('确定要删除这个任务吗？')) {
+          try {
+            const res = await postJSON('/tasks/' + taskId + '/delete', {});
+            message.success('任务删除成功');
+            load();
+          } catch (error) {
+            message.error('任务删除失败: ' + error.message);
+          }
+        }
+      }
+      useEffect(() => { load() }, [])
+      const cols = [
+        { title: '编号', dataIndex: 'id', key: 'id' },
+        { title: '任务名称', dataIndex: 'name', key: 'name' },
+        { title: '站点ID', dataIndex: 'site_id', key: 'site_id' },
+        { title: '调度类型', dataIndex: 'schedule_type', key: 'schedule_type' },
+        { title: '调度值', dataIndex: 'schedule_value', key: 'schedule_value' },
+        {
+          title: '操作',
+          key: 'action',
+          render: (_, record) => (
+            <span>
+              <Button type="link" size="small" onClick={() => handleExecuteTask(record.id)}>执行</Button>
+              <Button type="link" size="small" onClick={() => handleEditTask(record)}>编辑</Button>
+              <Button type="link" size="small" danger onClick={() => handleDeleteTask(record.id)}>删除</Button>
+            </span>
+          )
+        }
+      ]
+      return (
+        <div>
+          <div style={{ marginBottom: 16 }}>
+            <Button type="primary" onClick={() => setModalOpen(true)}>添加任务</Button>
+          </div>
+          <Modal title={editingTask ? "编辑任务" : "添加任务"} open={modalOpen} onCancel={() => { setModalOpen(false); setEditingTask(null); form.resetFields(); }} footer={null}>
+            <Form
+              form={form}
+              layout="vertical"
+              onFinish={onFinish}
+              onValuesChange={(changedValues, allValues) => {
+                console.log('任务表单值变化:', JSON.stringify(changedValues, null, 2));
+                console.log('所有任务表单值:', JSON.stringify(allValues, null, 2));
+              }}
+            >
+              <Form.Item
+                name="name"
+                label="任务名称"
+                rules={[{
+                  required: true,
+                  message: '请输入任务名称'
+                }]}
+              >
+                <Input placeholder="请输入任务名称，如：自动爬取任务" />
+              </Form.Item>
+              <Form.Item
+                name="site_id"
+                label="选择站点"
+                rules={[{
+                  required: true,
+                  message: '请选择要执行任务的站点'
+                }]}
+              >
+                <Select placeholder="请选择站点">
+                  {sites.map(s => <Select.Option key={s.id} value={s.id}>{s.name} ({s.base_url})</Select.Option>)}
+                </Select>
+              </Form.Item>
+              <Form.Item
+                name="schedule_type"
+                label="调度类型"
+                rules={[{
+                  required: true,
+                  message: '请选择调度类型'
+                }]}
+              >
+                <Select
+                  placeholder="请选择调度类型"
+                  options={[
+                    { value: 'manual', label: '手动执行' },
+                    { value: 'interval', label: '间隔执行' },
+                    { value: 'cron', label: 'Cron表达式' }
+                  ]}
+                />
+              </Form.Item>
+              <Form.Item
+                name="schedule_value"
+                label="调度值"
+                rules={[({ getFieldValue }) => ({
+                  validator(_, value) {
+                    const st = getFieldValue('schedule_type');
+                    if (st === 'manual') return Promise.resolve();
+                    if (!value || String(value).trim() === '') return Promise.reject('请输入调度值');
+                    return Promise.resolve();
+                  }
+                })]}
+              >
+                <Input.TextArea
+                  placeholder="根据调度类型输入对应的值：&#10;• 手动执行：无需填写&#10;• 间隔执行：输入秒数，如 3600（表示1小时）&#10;• Cron表达式：输入cron格式，如 0 9 * * *（表示每天9点）"
+                  disabled={form.getFieldValue('schedule_type') === 'manual'}
+                  rows={3}
+                />
+              </Form.Item>
+              <Form.Item>
+                <Button type="primary" htmlType="submit">
+                  {editingTask ? "更新任务" : "创建任务"}
+                </Button>
+                <Button style={{ marginLeft: 8 }} onClick={() => setModalOpen(false)}>取消</Button>
+              </Form.Item>
+            </Form>
+          </Modal>
+          <Table
+            rowKey="id"
+            loading={loading}
+            dataSource={rows}
+            columns={cols}
+            pagination={{
+              total: rows.length,
+              showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
+              showSizeChanger: true,
+              pageSizeOptions: ['10', '20', '50', '100'],
+              defaultPageSize: 20,
+              position: ['bottomCenter']
+            }}
+          />
+        </div>
+      )
+    }
+    function TorrentsPage() {
+      const [rows, setRows] = useState([])
+      const [loading, setLoading] = useState(false)
+      const [limit, setLimit] = useState(50)
+      const [modalOpen, setModalOpen] = useState(false)
+      const [form] = Form.useForm()
+      const [editingTorrent, setEditingTorrent] = useState(null)
+
+      async function load() { setLoading(true); const data = await fetchJSON('/torrents?limit=' + limit); setRows(data || []); setLoading(false) }
+
+      async function handleEditTorrent(torrent) {
+        setEditingTorrent(torrent);
+        form.setFieldsValue({
+          name: torrent.name,
+          is_upload: torrent.is_upload
+        });
+        setModalOpen(true);
+      }
+
+      async function handleDeleteTorrent(torrentId) {
+        if (window.confirm('确定要删除这个种子吗？')) {
+          try {
+            const res = await postJSON('/torrents/' + torrentId + '/delete', {});
+            message.success('种子删除成功');
+            load();
+          } catch (error) {
+            message.error('种子删除失败: ' + error.message);
+          }
+        }
+      }
+
+      async function onFinish(v) {
+        try {
+          if (editingTorrent) {
+            // 编辑模式
+            const res = await postJSON('/torrents/' + editingTorrent.id, v);
+            message.success('种子更新成功: ' + JSON.stringify(res));
+          }
+          setModalOpen(false);
+          form.resetFields();
+          setEditingTorrent(null);
+          load();
+        } catch (error) {
+          message.error('操作失败: ' + error.message);
+        }
+      }
+
+      useEffect(() => { load() }, [])
+      const cols = [
+        { title: '编号', dataIndex: 'id', key: 'id' },
+        { title: '信息哈希', dataIndex: 'info_hash', key: 'info_hash' },
+        { title: '名称', dataIndex: 'name', key: 'name' },
+        { title: '大小', dataIndex: 'size', key: 'size' },
+        { title: '分辨率', dataIndex: 'standard', key: 'standard' },
+        { title: '站点', dataIndex: 'crawl_site', key: 'crawl_site' },
+        { title: '已上传', dataIndex: 'is_upload', key: 'is_upload', render: (v) => v ? '是' : '否' },
+        { title: '抓取时间', dataIndex: 'crawledAt', key: 'crawledAt' },
+        {
+          title: '操作',
+          key: 'action',
+          render: (_, record) => (
+            <span>
+              <Button type="link" size="small" onClick={() => handleEditTorrent(record)}>编辑</Button>
+              <Button type="link" size="small" danger onClick={() => handleDeleteTorrent(record.id)}>删除</Button>
+            </span>
+          )
+        }
+      ]
+      return (
+        <div>
+          <Modal title={editingTorrent ? "编辑种子" : "添加种子"} open={modalOpen} onCancel={() => { setModalOpen(false); setEditingTorrent(null); form.resetFields(); }} footer={null}>
+            <Form form={form} layout="vertical" onFinish={onFinish}>
+              <Form.Item name="name" label="种子名称" rules={[{ required: true }]}> <Input /> </Form.Item>
+              <Form.Item name="is_upload" label="已上传" valuePropName="checked"> <Switch /> </Form.Item>
+              <Form.Item>
+                <Button type="primary" htmlType="submit">保存</Button>
+                <Button style={{ marginLeft: 8 }} onClick={() => { setModalOpen(false); setEditingTorrent(null); form.resetFields(); }}>取消</Button>
+              </Form.Item>
+            </Form>
+          </Modal>
+          <Form layout="inline" onFinish={load}>
+            <Form.Item><Input value={limit} onChange={e => setLimit(e.target.value)} /></Form.Item>
+            <Form.Item><Button htmlType="submit">加载</Button></Form.Item>
+          </Form>
+          <Table
+            rowKey="id"
+            loading={loading}
+            dataSource={rows}
+            columns={cols}
+            pagination={{
+              total: rows.length,
+              showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
+              showSizeChanger: true,
+              pageSizeOptions: ['10', '20', '50', '100'],
+              defaultPageSize: 20,
+              position: ['bottomCenter']
+            }}
+          />
+        </div>
+      )
+    }
+    function SettingsPage() {
+      const [loading, setLoading] = useState(false)
+      const [form] = Form.useForm()
+      const [settings, setSettings] = useState({})
+      const [testingDb, setTestingDb] = useState(false)
+
+      // 配置项定义
+      const configItems = [
+        // 基础设置
+        {
+          key: 'test_mode',
+          label: '测试模式',
+          type: 'switch',
+          description: '开启时仅抓取少量条目用于测试'
+        },
+        {
+          key: 'test_limit',
+          label: '测试模式限制',
+          type: 'number',
+          placeholder: '5',
+          description: '测试模式下每页抓取的最大条目数'
+        },
+        // 网络设置
+        {
+          key: 'user_agent',
+          label: 'User-Agent',
+          type: 'input',
+          placeholder: '浏览器User-Agent字符串',
+          description: '请求时使用的User-Agent字符串'
+        },
+        {
+          key: 'delay',
+          label: '请求延迟（秒）',
+          type: 'number',
+          placeholder: '0.5',
+          description: '每次请求之间的延迟时间，防止被封'
+        },
+        // 目录设置
+        {
+          key: 'out_dir',
+          label: '输出目录',
+          type: 'input',
+          placeholder: '例如：scripts/pt-crawler/output',
+          description: '抓取结果的输出目录路径'
+        },
+        {
+          key: 'torrent_download_dir',
+          label: '种子下载目录',
+          type: 'input',
+          placeholder: '例如：scripts/pt-crawler/output/torrents',
+          description: '种子文件下载目录路径'
+        },
+        // 高级设置
+        {
+          key: 'allow_v2',
+          label: '允许V2种子',
+          type: 'switch',
+          description: '是否允许抓取v2版本的种子（如果站点支持）'
+        }
+      ]
+
+      async function load() {
+        setLoading(true)
+        try {
+          const allSettings = await fetchJSON('/settings')
+          setSettings(allSettings)
+
+          // 设置表单初始值
+          const initialValues = {}
+          configItems.forEach(item => {
+            const value = allSettings[item.key]?.value
+            if (item.type === 'switch') {
+              initialValues[item.key] = value === 'true' || value === true
+            } else if (item.type === 'number') {
+              initialValues[item.key] = value ? Number(value) : undefined
+            } else {
+              initialValues[item.key] = value || ''
+            }
+          })
+          form.setFieldsValue(initialValues)
+        } catch (error) {
+          message.error('加载设置失败')
+        }
+        setLoading(false)
+      }
+
+      async function onFinish(values) {
+        setLoading(true)
+        try {
+          // 转换数据格式
+          const payload = {}
+          configItems.forEach(item => {
+            const value = values[item.key]
+            if (value !== undefined && value !== '') {
+              payload[item.key] = {
+                value: item.type === 'switch' ? String(value) : String(value),
+                description: item.description
+              }
+            }
+          })
+
+          await postJSON('/settings', payload)
+          message.success('设置保存成功')
+          load()
+        } catch (error) {
+          message.error('保存设置失败')
+        }
+        setLoading(false)
+      }
+
+      useEffect(() => { load() }, [])
+
+      const renderFormItem = (item) => {
+        switch (item.type) {
+          case 'switch':
+            return <Switch />
+          case 'number':
+            return <InputNumber style={{ width: '100%' }} placeholder={item.placeholder} />
+          case 'textarea':
+            return <Input.TextArea rows={3} placeholder={item.placeholder} />
+          case 'password':
+            return <Input.Password placeholder={item.placeholder} autoComplete="new-password" />
+          default:
+            return <Input placeholder={item.placeholder} />
+        }
+      }
+
+      return (
+        <div>
+          <div style={{ marginBottom: 12 }}>
+            <p style={{ color: '#666' }}>配置爬虫参数和其他系统选项（数据库配置请在config.yaml文件中设置）</p>
+          </div>
+          <Form form={form} layout="vertical" onFinish={onFinish} loading={loading}>
+            {configItems.slice(0, 2).map(item => (
+              <Form.Item
+                key={item.key}
+                name={item.key}
+                label={item.label}
+                extra={item.description}
+                valuePropName={item.type === 'switch' ? 'checked' : 'value'}
+              >
+                {renderFormItem(item)}
+              </Form.Item>
+            ))}
+            {configItems.slice(2, 4).map(item => (
+              <Form.Item
+                key={item.key}
+                name={item.key}
+                label={item.label}
+                extra={item.description}
+                valuePropName={item.type === 'switch' ? 'checked' : 'value'}
+              >
+                {renderFormItem(item)}
+              </Form.Item>
+            ))}
+
+            {configItems.slice(4, 6).map(item => (
+              <Form.Item
+                key={item.key}
+                name={item.key}
+                label={item.label}
+                extra={item.description}
+              >
+                {renderFormItem(item)}
+              </Form.Item>
+            ))}
+
+            {configItems.slice(4, 5).map(item => (
+              <Form.Item
+                key={item.key}
+                name={item.key}
+                label={item.label}
+                extra={item.description}
+                valuePropName={item.type === 'switch' ? 'checked' : 'value'}
+              >
+                {renderFormItem(item)}
+              </Form.Item>
+            ))}
+
+            <Form.Item>
+              <Button type="primary" htmlType="submit" loading={loading}>
+                保存所有设置
+              </Button>
+              <Button style={{ marginLeft: 8 }} onClick={() => form.resetFields()}>
+                重置
+              </Button>
+            </Form.Item>
+          </Form>
+        </div>
+      )
+    }
+    function App() {
+      const [active, setActive] = useState('tasks')
+      return (
+        <Layout style={{ height: '100vh' }}>
+          <Sider minWidth={250} style={{ background: '#fff', borderRight: '1px solid #eef0f3' }}>
+            <div className="logo">面板</div>
+            <Menu theme="light" selectedKeys={[active]} onClick={e => setActive(e.key)} items={[{ key: 'tasks', label: '任务管理' }, { key: 'sites', label: '网站管理' }, { key: 'torrents', label: '种子管理' }, { key: 'settings', label: '系统设置' }]} />
+          </Sider>
+          <Layout>
+            <Header style={{ background: '#fff' }}>Header</Header>
+            <Content style={{ background: '#fff', padding: '24px', overflow: 'auto', height: 'calc(100vh - 64px - 70px)' }}>
+              {active === 'tasks' && <TasksPage />}
+              {active === 'sites' && <SitesPage />}
+              {active === 'torrents' && <TorrentsPage />}
+              {active === 'settings' && <SettingsPage />}
+            </Content>
+            <Footer style={{ background: '#fff' }}>Footer</Footer>
+          </Layout>
+        </Layout>
+      )
+    }
+    const root = ReactDOM.createRoot(document.getElementById('root'))
+    root.render(<App />)
+  </script>
+</body>
+
+</html>
