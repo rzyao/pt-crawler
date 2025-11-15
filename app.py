@@ -120,6 +120,7 @@ def _register_existing_scheduled_tasks():
                     for k in ['base_url','list_path','cookie','user_agent']:
                         if site_row.get(k):
                             base[k] = site_row[k]
+                base['start_page'] = int((t.get('start_page') or 1))
                 # 避免重复注册：如已存在同 id 任务，替换之
                 try:
                     scheduler.remove_job(str(t['id']))
@@ -151,6 +152,12 @@ async def _on_startup():
     except Exception:
         pass
 
+def get_conn():
+    try:
+        return pymysql.connect(**DB_CONFIG, cursorclass=pymysql.cursors.DictCursor, connect_timeout=5)
+    except Exception:
+        raise HTTPException(status_code=503, detail="数据库连接失败")
+
 # 调度器
 
 class Site(BaseModel):
@@ -165,6 +172,7 @@ class Task(BaseModel):
     site_id: int
     schedule_type: str  # 'cron' or 'interval'
     schedule_value: str  # cron字符串或间隔秒
+    start_page: int | None = 1
 
 # API 端点示例
 @app.post("/sites/")
@@ -177,7 +185,10 @@ async def add_site_endpoint(site: Site):
 @app.post("/tasks/")
 async def add_task_endpoint(task: Task):
     conn = pymysql.connect(**DB_CONFIG, cursorclass=pymysql.cursors.DictCursor)
-    task_id = add_task(conn, task.dict())
+    payload = task.dict()
+    if payload.get('start_page') is None:
+        payload['start_page'] = 1
+    task_id = add_task(conn, payload)
     site_row = get_site(conn, task.site_id)
     conn.close()
 
@@ -194,6 +205,7 @@ async def add_task_endpoint(task: Task):
                 for k in ['base_url','list_path','cookie','user_agent']:
                     if site_row.get(k):
                         base[k] = site_row[k]
+            base['start_page'] = int(payload.get('start_page') or 1)
             scheduler.add_job(lambda: asyncio.run(run_crawler(base)), trigger, id=str(task_id))
         except Exception as e:
             logger = logging.getLogger("pt-crawler")
@@ -213,7 +225,7 @@ async def list_sites_endpoint():
 
 @app.get("/tasks")
 async def list_tasks_endpoint():
-    conn = pymysql.connect(**DB_CONFIG, cursorclass=pymysql.cursors.DictCursor)
+    conn = get_conn()
     rows = list_tasks(conn)
     conn.close()
     return rows

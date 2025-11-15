@@ -163,6 +163,18 @@
                 <Input placeholder="请输入站点名称" />
               </Form.Item>
               <Form.Item
+                name="start_page"
+                label="起始页码"
+                rules={[({ getFieldValue }) => ({
+                  validator(_, value) {
+                    if (value == null || Number(value) >= 1) return Promise.resolve();
+                    return Promise.reject('起始页需为≥1的整数');
+                  }
+                })]}
+              >
+                <InputNumber style={{ width: '100%' }} min={1} placeholder="默认为 1" />
+              </Form.Item>
+              <Form.Item
                 name="base_url"
                 label="站点地址"
                 rules={[{
@@ -256,7 +268,8 @@
             name: v.name.trim(),
             site_id: v.site_id,
             schedule_type: v.schedule_type,
-            schedule_value: v.schedule_type === 'manual' ? '' : v.schedule_value.trim()
+            schedule_value: v.schedule_type === 'manual' ? '' : v.schedule_value.trim(),
+            start_page: Number(v.start_page || 1)
           };
 
           console.log('清理后的任务数据:', JSON.stringify(cleanData, null, 2));
@@ -304,7 +317,7 @@
 
       function handleEditTask(task) {
         setEditingTask(task);
-        form.setFieldsValue(task);
+        form.setFieldsValue({ ...task, start_page: task.start_page ?? 1 });
         setModalOpen(true);
       }
 
@@ -326,6 +339,7 @@
         { title: '站点ID', dataIndex: 'site_id', key: 'site_id' },
         { title: '调度类型', dataIndex: 'schedule_type', key: 'schedule_type' },
         { title: '调度值', dataIndex: 'schedule_value', key: 'schedule_value' },
+        { title: '起始页', dataIndex: 'start_page', key: 'start_page' },
         {
           title: '操作',
           key: 'action',
@@ -341,7 +355,7 @@
       return (
         <div>
           <div style={{ marginBottom: 16 }}>
-            <Button type="primary" onClick={() => setModalOpen(true)}>添加任务</Button>
+            <Button type="primary" onClick={() => { setEditingTask(null); form.resetFields(); form.setFieldsValue({ start_page: 1 }); setModalOpen(true); }}>添加任务</Button>
           </div>
           <Modal title={editingTask ? "编辑任务" : "添加任务"} open={modalOpen} onCancel={() => { setModalOpen(false); setEditingTask(null); form.resetFields(); }} footer={null}>
             <Form
@@ -409,6 +423,18 @@
                   disabled={form.getFieldValue('schedule_type') === 'manual'}
                   rows={3}
                 />
+              </Form.Item>
+              <Form.Item
+                name="start_page"
+                label="起始页码"
+                rules={[({ getFieldValue }) => ({
+                  validator(_, value) {
+                    if (value == null || Number(value) >= 1) return Promise.resolve();
+                    return Promise.reject('起始页需为≥1的整数');
+                  }
+                })]}
+              >
+                <InputNumber style={{ width: '100%' }} min={1} placeholder="默认为 1" />
               </Form.Item>
               <Form.Item>
                 <Button type="primary" htmlType="submit">

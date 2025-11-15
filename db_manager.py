@@ -116,6 +116,10 @@ def init_site_task_tables(db_config: dict):
             status VARCHAR(20) DEFAULT 'inactive',
             last_run DATETIME
         )''')
+    # 添加 start_page 字段（如不存在）
+    cursor.execute("SHOW COLUMNS FROM tasks LIKE 'start_page'")
+    if not cursor.fetchone():
+        cursor.execute("ALTER TABLE tasks ADD COLUMN start_page INT DEFAULT 1")
     
     # 创建 settings 表
     cursor.execute('''
@@ -157,8 +161,11 @@ def get_site(db_conn: pymysql.connections.Connection, site_id: int):
 def add_task(db_conn: pymysql.connections.Connection, task: dict) -> int:
     cursor = db_conn.cursor()
     cols = ['site_id','name','schedule_type','schedule_value','status']
-    sql = f"INSERT INTO tasks ({', '.join(cols)}) VALUES ({', '.join(['%s']*len(cols))})"
     vals = [task.get('site_id'), task.get('name'), task.get('schedule_type'), task.get('schedule_value'), task.get('status','inactive')]
+    if 'start_page' in task and task.get('start_page') is not None:
+        cols.append('start_page')
+        vals.append(int(task.get('start_page') or 1))
+    sql = f"INSERT INTO tasks ({', '.join(cols)}) VALUES ({', '.join(['%s']*len(cols))})"
     cursor.execute(sql, vals)
     db_conn.commit()
     return cursor.lastrowid

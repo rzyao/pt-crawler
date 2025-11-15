@@ -66,6 +66,7 @@ async def run_crawler_for_site(site: dict, task: dict) -> dict:
                 self.test_mode = config.get('test_mode', False)
                 self.test_limit = config.get('test_limit', 5)
                 self.allow_v2 = config.get('allow_v2', False)
+                self.start_page = int(task.get('start_page') or 1)
         
         opts = MockArgs()
         
@@ -118,7 +119,7 @@ async def crawl(opts: argparse.Namespace) -> int:
     seen_link_streak = 0
     stop_due_to_seen = False
 
-    page = 1
+    page = getattr(opts, 'start_page', 1)
     while True:
         list_url = absolute_url(opts.base_url, opts.list_path)
         if '?' in list_url:
