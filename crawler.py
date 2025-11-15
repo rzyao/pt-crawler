@@ -25,6 +25,7 @@ from parser_utils import (
     extract_basic_info,
     extract_tags,
     extract_description,
+    extract_mediainfo,
 )
 
 async def run_crawler_for_site(site: dict, task: dict) -> dict:
@@ -212,6 +213,7 @@ async def crawl(opts: argparse.Namespace) -> int:
 
                 descr_html = extract_descr_html(dsoup)
                 description = extract_description(dsoup)
+                mediainfo = extract_mediainfo(dsoup)
                 print(f"  [DEBUG] descr_html length: {len(descr_html) if descr_html else 0}")
                 # imdb_url removed per new schema
 
@@ -245,6 +247,7 @@ async def crawl(opts: argparse.Namespace) -> int:
                     'title': title,
                     'introduction': subtitle,
                     'description': description or '',
+                    'mediainfo': mediainfo or '',
                     'crawl_site': opts.base_url,
                     'medium': medium,
                     'video_codec': video_codec,

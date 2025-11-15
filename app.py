@@ -145,6 +145,8 @@ async def _on_startup():
         init_site_task_tables(DB_CONFIG)
         ensure_torrents_crawled_at(DB_CONFIG)
         ensure_torrents_is_upload(DB_CONFIG)
+        from db_manager import ensure_torrents_mediainfo
+        ensure_torrents_mediainfo(DB_CONFIG)
     except Exception:
         pass
     try:

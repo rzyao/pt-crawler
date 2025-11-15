@@ -20,6 +20,7 @@ def init_db(db_config: dict):
             title TEXT,
             introduction TEXT,
             description LONGTEXT,
+            mediainfo LONGTEXT,
             category TEXT,
             medium TEXT,
             video_codec TEXT,
@@ -74,6 +75,23 @@ def ensure_torrents_crawled_at(db_config: dict):
         conn.commit()
     else:
         cursor.execute("ALTER TABLE torrents MODIFY crawledAt DATETIME DEFAULT CURRENT_TIMESTAMP")
+        conn.commit()
+    conn.close()
+
+def ensure_torrents_mediainfo(db_config: dict):
+    conn = pymysql.connect(
+        host=db_config['host'],
+        port=db_config['port'],
+        user=db_config['user'],
+        password=db_config['password'],
+        database=db_config['database'],
+        cursorclass=pymysql.cursors.DictCursor
+    )
+    cursor = conn.cursor()
+    cursor.execute("SHOW COLUMNS FROM torrents LIKE 'mediainfo'")
+    row = cursor.fetchone()
+    if not row:
+        cursor.execute("ALTER TABLE torrents ADD COLUMN mediainfo LONGTEXT")
         conn.commit()
     conn.close()
 
@@ -286,10 +304,10 @@ def crawl_link_exists(db_conn: pymysql.connections.Connection, crawl_link: str) 
 def save_torrent_to_db(db_conn: pymysql.connections.Connection, record: dict):
     cursor = db_conn.cursor()
     try:
-        base_cols = ['info_hash','name','title','introduction','description','category','medium','video_codec','audiocodec','standard','production_team','size','is_single_file','is_upload','multi_file_list','crawl_site','crawl_link','saved_path','meta_version','tags']
+        base_cols = ['info_hash','name','title','introduction','description','mediainfo','category','medium','video_codec','audiocodec','standard','production_team','size','is_single_file','is_upload','multi_file_list','crawl_site','crawl_link','saved_path','meta_version','tags']
         use_crawled = bool(record.get('crawledAt'))
         cols = base_cols[:]
-        values = [record.get('info_hash'), record.get('name'), record.get('title', ''), record.get('introduction', ''), record.get('description', ''), record.get('category', ''), record.get('medium', ''), record.get('video_codec', ''), record.get('audiocodec', ''), record.get('standard', ''), record.get('production_team', ''), record.get('size'), record.get('is_single_file', 0), record.get('is_upload', 0), record.get('multi_file_list', ''), record.get('crawl_site', ''), record.get('crawl_link', ''), record.get('saved_path'), record.get('meta_version'), record.get('tags', '')]
+        values = [record.get('info_hash'), record.get('name'), record.get('title', ''), record.get('introduction', ''), record.get('description', ''), record.get('mediainfo', ''), record.get('category', ''), record.get('medium', ''), record.get('video_codec', ''), record.get('audiocodec', ''), record.get('standard', ''), record.get('production_team', ''), record.get('size'), record.get('is_single_file', 0), record.get('is_upload', 0), record.get('multi_file_list', ''), record.get('crawl_site', ''), record.get('crawl_link', ''), record.get('saved_path'), record.get('meta_version'), record.get('tags', '')]
         if use_crawled:
             cols.insert(-1, 'crawledAt')
             values.insert(-1, record.get('crawledAt'))
