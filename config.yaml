@@ -6,8 +6,8 @@ log_file: ./logs/crawler.log
 port: 8000
 
 # 数据库配置
-db_host: 192.168.50.2
-db_port: 3307
+db_host: 1Panel-mysql-mhHQ
+db_port: 3306
 db_user: root
 db_password: mysql_tEmzij
 db_name: torrents
