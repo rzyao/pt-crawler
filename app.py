@@ -142,6 +142,8 @@ async def _on_startup():
             f"mysql+pymysql://{DB_CONFIG['user']}:{DB_CONFIG['password']}@{DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['database']}"
         )
         Session = sessionmaker(bind=engine)
+        from db_manager import ensure_torrents_table
+        ensure_torrents_table(DB_CONFIG)
         init_site_task_tables(DB_CONFIG)
         ensure_torrents_crawled_at(DB_CONFIG)
         ensure_torrents_is_upload(DB_CONFIG)
@@ -234,15 +236,23 @@ async def list_tasks_endpoint():
 
 @app.get("/torrents")
 async def list_torrents_endpoint(limit: int = 50):
-    conn = pymysql.connect(**DB_CONFIG, cursorclass=pymysql.cursors.DictCursor)
-    cur = conn.cursor()
-    cur.execute("SHOW COLUMNS FROM torrents LIKE 'crawledAt'")
-    has_crawled_at = cur.fetchone() is not None
-    select_cols = "id, info_hash, name, title, size, standard, crawl_site" + (", crawledAt" if has_crawled_at else "")
-    cur.execute(f"SELECT {select_cols} FROM torrents ORDER BY id DESC LIMIT %s", (limit,))
-    rows = cur.fetchall()
-    conn.close()
-    return rows
+    try:
+        conn = pymysql.connect(**DB_CONFIG, cursorclass=pymysql.cursors.DictCursor)
+        cur = conn.cursor()
+        cur.execute("SHOW COLUMNS FROM torrents LIKE 'crawledAt'")
+        has_crawled_at = cur.fetchone() is not None
+        select_cols = "id, info_hash, name, title, size, standard, crawl_site" + (", crawledAt" if has_crawled_at else "")
+        cur.execute(f"SELECT {select_cols} FROM torrents ORDER BY id DESC LIMIT %s", (limit,))
+        rows = cur.fetchall()
+        conn.close()
+        return rows
+    except pymysql.err.ProgrammingError:
+        try:
+            from db_manager import ensure_torrents_table
+            ensure_torrents_table(DB_CONFIG)
+        except Exception:
+            pass
+        return []
 
 @app.get("/settings/{key}")
 async def get_setting_endpoint(key: str):

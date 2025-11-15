@@ -41,6 +41,45 @@ def init_db(db_config: dict):
     conn.commit()
     conn.close()
 
+def ensure_torrents_table(db_config: dict):
+    conn = pymysql.connect(
+        host=db_config['host'],
+        port=db_config['port'],
+        user=db_config['user'],
+        password=db_config['password'],
+        database=db_config['database'],
+        cursorclass=pymysql.cursors.DictCursor
+    )
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS torrents (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            info_hash VARCHAR(64) UNIQUE,
+            name TEXT,
+            title TEXT,
+            introduction TEXT,
+            description LONGTEXT,
+            mediainfo LONGTEXT,
+            category TEXT,
+            medium TEXT,
+            video_codec TEXT,
+            audiocodec TEXT,
+            standard TEXT,
+            production_team TEXT,
+            size BIGINT,
+            is_single_file TINYINT(1),
+            is_upload TINYINT(1) DEFAULT 0,
+            multi_file_list LONGTEXT,
+            crawl_site TEXT,
+            crawl_link TEXT,
+            saved_path TEXT,
+            meta_version VARCHAR(10),
+            crawledAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+            tags TEXT
+        )''')
+    conn.commit()
+    conn.close()
+
 def ensure_torrents_is_upload(db_config: dict):
     conn = pymysql.connect(
         host=db_config['host'],
